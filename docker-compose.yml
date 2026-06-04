@@ -1,0 +1,74 @@
+# Тестовый стенд: Валидация заголовка X-Forwarded-For в цепочке прокси
+# Схема: Client -> Nginx1 -> Nginx2 -> Nginx3 -> App
+# Сеть: 172.20.0.0/16 (статические IP для доверенных узлов)
+# Управление: make build / up / test / down
+
+services:
+  # Backend приложение
+  app:
+    build: ./app
+    container_name: xff_app
+    networks:
+      proxy_net:
+        ipv4_address: 172.20.0.100
+    deploy:
+      resources:
+        limits:
+          cpus: '0.1'
+          memory: 64M
+
+  # Nginx 3 (Последний в цепочке, смотрит на App)
+  nginx3:
+    image: nginx:alpine
+    container_name: nginx3
+    ports:
+      - "8003:80"
+    volumes:
+      - ./nginx/common.conf:/etc/nginx/conf.d/common.conf:ro
+      - ./nginx/nginx3.conf:/etc/nginx/nginx.conf:ro
+    networks:
+      proxy_net:
+        ipv4_address: 172.20.0.13
+    depends_on:
+      app:
+        condition: service_healthy
+
+  # Nginx 2 (Середина цепочки, смотрит на Nginx 3)
+  nginx2:
+    image: nginx:alpine
+    container_name: nginx2
+    ports:
+      - "8002:80"
+    volumes:
+      - ./nginx/common.conf:/etc/nginx/conf.d/common.conf:ro
+      - ./nginx/nginx2.conf:/etc/nginx/nginx.conf:ro
+    networks:
+      proxy_net:
+        ipv4_address: 172.20.0.12
+    depends_on:
+      nginx3:
+        condition: service_started
+
+  # Nginx 1 (Входная точка, смотрит на Nginx 2)
+  nginx1:
+    image: nginx:alpine
+    container_name: nginx1
+    ports:
+      - "8001:80"
+    volumes:
+      - ./nginx/common.conf:/etc/nginx/conf.d/common.conf:ro
+      - ./nginx/nginx1.conf:/etc/nginx/nginx.conf:ro
+    networks:
+      proxy_net:
+        ipv4_address: 172.20.0.11
+    depends_on:
+      nginx2:
+        condition: service_started
+
+# Настройка сети
+networks:
+  proxy_net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16 # Подсеть как в common.conf
