@@ -1,9 +1,8 @@
-#!/usr/bin/env/ python3
+#!/usr/bin/env python3
 
 import json
 import signal
 import sys
-from encodings.utf_7 import encode
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from typing import Dict, Any
 

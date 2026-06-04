@@ -18,7 +18,8 @@ down:
 	$(COMPOSE) down --remove-orphans --volumes
 
 # Полная перезагрузка сервисов
-restart: down up
+restart: down
+	$(COMPOSE) up -d
 
 # Валидация проброса заголовков через всю цепочку прокси
 test:
